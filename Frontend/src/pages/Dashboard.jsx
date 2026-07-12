@@ -25,7 +25,7 @@ export default function Dashboard() {
       { name: 'Sun', utilization: 0 },
     ]
   });
-  
+
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -70,35 +70,35 @@ export default function Dashboard() {
 
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KpiCard 
-          title="Active Vehicles" 
-          value={kpis.activeVehicles} 
-          icon={<Truck className="h-4 w-4 text-blue-500" />} 
+        <KpiCard
+          title="Active Vehicles"
+          value={kpis.activeVehicles}
+          icon={<Truck className="h-4 w-4 text-blue-500" />}
         />
-        <KpiCard 
-          title="Available Vehicles" 
-          value={kpis.availableVehicles} 
-          icon={<Activity className="h-4 w-4 text-green-500" />} 
+        <KpiCard
+          title="Available Vehicles"
+          value={kpis.availableVehicles}
+          icon={<Activity className="h-4 w-4 text-green-500" />}
         />
-        <KpiCard 
-          title="In Maintenance" 
-          value={kpis.maintenanceVehicles} 
-          icon={<Wrench className="h-4 w-4 text-orange-500" />} 
+        <KpiCard
+          title="In Maintenance"
+          value={kpis.maintenanceVehicles}
+          icon={<Wrench className="h-4 w-4 text-orange-500" />}
         />
-        <KpiCard 
-          title="Fleet Utilization" 
-          value={`${kpis.fleetUtilization}%`} 
-          icon={<Percent className="h-4 w-4 text-purple-500" />} 
+        <KpiCard
+          title="Fleet Utilization"
+          value={`${kpis.fleetUtilization}%`}
+          icon={<Percent className="h-4 w-4 text-purple-500" />}
         />
-        <KpiCard 
-          title="Active Trips" 
-          value={kpis.activeTrips} 
-          icon={<Navigation className="h-4 w-4 text-blue-500" />} 
+        <KpiCard
+          title="Active Trips"
+          value={kpis.activeTrips}
+          icon={<Navigation className="h-4 w-4 text-blue-500" />}
         />
-        <KpiCard 
-          title="Pending Trips" 
-          value={kpis.pendingTrips} 
-          icon={<Navigation className="h-4 w-4 text-yellow-500" />} 
+        <KpiCard
+          title="Pending Trips"
+          value={kpis.pendingTrips}
+          icon={<Navigation className="h-4 w-4 text-yellow-500" />}
         />
       </div>
 
@@ -124,10 +124,10 @@ export default function Dashboard() {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                 />
-                <Legend verticalAlign="bottom" height={36}/>
+                <Legend verticalAlign="bottom" height={36} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
@@ -143,8 +143,8 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} />
                 <YAxis axisLine={false} tickLine={false} />
-                <Tooltip 
-                  cursor={{fill: 'rgba(0,0,0,0.05)'}}
+                <Tooltip
+                  cursor={{ fill: 'rgba(0,0,0,0.05)' }}
                   contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                 />
                 <Bar dataKey="utilization" fill="#3b82f6" radius={[4, 4, 0, 0]} />

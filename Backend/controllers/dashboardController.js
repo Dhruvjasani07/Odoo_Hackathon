@@ -1,7 +1,7 @@
 const { Op } = require('sequelize');
-const Vehicle        = require('../models/Vehicle');
-const Driver         = require('../models/Driver');
-const Trip           = require('../models/Trip');
+const Vehicle = require('../models/Vehicle');
+const Driver = require('../models/Driver');
+const Trip = require('../models/Trip');
 const MaintenanceLog = require('../models/MaintenanceLog');
 
 // GET /api/dashboard/kpis
@@ -46,7 +46,7 @@ exports.getKpis = async (req, res) => {
 
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const weeklyUtilization = [];
-    
+
     // Build the last 7 days array
     for (let i = 6; i >= 0; i--) {
       const d = new Date(today);
