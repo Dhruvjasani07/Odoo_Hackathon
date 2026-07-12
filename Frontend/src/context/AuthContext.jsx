@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
 
     if (storedToken && storedUser) {
       const parsedUser = JSON.parse(storedUser);
-      
+
       // If the old state doesn't have an email, automatically clear it to force a fresh login
       if (!parsedUser.email) {
         localStorage.removeItem('transitops_token');
@@ -33,19 +33,19 @@ export const AuthProvider = ({ children }) => {
       // Real API call
       const response = await api.post('/auth/login', { email, password, role });
       const { token, role: userRole, name, email: userEmail } = response.data;
-      
+
       setToken(token);
       setUser({ name, role: userRole, email: userEmail });
-      
+
       localStorage.setItem('transitops_token', token);
       localStorage.setItem('transitops_user', JSON.stringify({ name, role: userRole, email: userEmail }));
 
       return { success: true };
     } catch (error) {
       console.error('Login failed', error);
-      return { 
-        success: false, 
-        error: error.response?.data?.message || 'Invalid credentials' 
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Invalid credentials'
       };
     }
   };
