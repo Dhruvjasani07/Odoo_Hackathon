@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -8,19 +8,43 @@ import { Label } from '../components/ui/Label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table';
 import { Plus, Play, CheckCircle2, XCircle } from 'lucide-react';
 
-const mockTrips = [
-  { id: 1, source: 'New York, NY', destination: 'Boston, MA', vehicle: 'TRK-1001', driver: 'John Doe', status: 'Dispatched', cargoWeight: '15T' },
-  { id: 2, source: 'Chicago, IL', destination: 'Detroit, MI', vehicle: 'TRK-1002', driver: 'Jane Smith', status: 'Draft', cargoWeight: '20T' },
-  { id: 3, source: 'Los Angeles, CA', destination: 'Las Vegas, NV', vehicle: 'VAN-2001', driver: 'Mike Johnson', status: 'Completed', cargoWeight: '1.5T' },
-  { id: 4, source: 'Miami, FL', destination: 'Orlando, FL', vehicle: 'TRK-1003', driver: 'Robert Lee', status: 'Cancelled', cargoWeight: '10T' },
-];
+import api from '../api/axios';
 
 export default function Trips() {
-  const [trips, setTrips] = useState(mockTrips);
+  const [trips, setTrips] = useState([]);
+  const [availableVehicles, setAvailableVehicles] = useState([]);
+  const [availableDrivers, setAvailableDrivers] = useState([]);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [validationError, setValidationError] = useState('');
+
+  const fetchTrips = async () => {
+    try {
+      const res = await api.get('/trips');
+      setTrips(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchOptions = async () => {
+    try {
+      const [vRes, dRes] = await Promise.all([
+        api.get('/vehicles/available'),
+        api.get('/drivers/available')
+      ]);
+      setAvailableVehicles(vRes.data);
+      setAvailableDrivers(dRes.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchTrips();
+    fetchOptions();
+  }, []);
 
   const getStatusBadge = (status) => {
     switch(status) {
@@ -32,28 +56,53 @@ export default function Trips() {
     }
   };
 
-  const handleCreateTrip = (e) => {
+  const handleCreateTrip = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const cargoWeight = parseFloat(formData.get('cargoWeight'));
     
-    // Simulate validation error (mock vehicle max capacity is 40T for heavy duty)
-    if (cargoWeight > 40) {
-      setValidationError('Cargo exceeds maximum vehicle capacity (40T)');
-      return;
+    try {
+      await api.post('/trips', {
+        source: formData.get('source'),
+        destination: formData.get('destination'),
+        vehicleId: formData.get('vehicle'),
+        driverId: formData.get('driver'),
+        cargoWeight: formData.get('cargoWeight'),
+        plannedDistance: formData.get('distance')
+      });
+      setValidationError('');
+      setIsNewModalOpen(false);
+      fetchTrips();
+      fetchOptions(); // Refresh available options
+    } catch (err) {
+      setValidationError(err.response?.data?.message || 'Failed to create trip');
     }
-
-    setValidationError('');
-    setIsNewModalOpen(false);
   };
 
-  const handleCompleteTrip = (e) => {
+  const handleCompleteTrip = async (e) => {
     e.preventDefault();
-    setIsCompleteModalOpen(false);
+    const formData = new FormData(e.target);
+    try {
+      await api.put(`/trips/${selectedTrip.id}/complete`, {
+        actualDistance: formData.get('actualDistance'),
+        fuelConsumed: formData.get('fuelConsumed'),
+        finalOdometer: formData.get('finalOdometer')
+      });
+      setIsCompleteModalOpen(false);
+      fetchTrips();
+      fetchOptions();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to complete trip');
+    }
   };
 
-  const updateStatus = (id, newStatus) => {
-    setTrips(trips.map(t => t.id === id ? { ...t, status: newStatus } : t));
+  const updateStatus = async (id, action) => {
+    try {
+      await api.put(`/trips/${id}/${action}`);
+      fetchTrips();
+      if (action === 'cancel' || action === 'complete') fetchOptions();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Action failed');
+    }
   };
 
   return (
@@ -90,14 +139,14 @@ export default function Trips() {
                       <span className="text-xs text-muted-foreground">to {trip.destination}</span>
                     </div>
                   </TableCell>
-                  <TableCell>{trip.vehicle}</TableCell>
-                  <TableCell>{trip.driver}</TableCell>
-                  <TableCell>{trip.cargoWeight}</TableCell>
+                  <TableCell>{trip.vehicle?.registrationNumber || 'N/A'}</TableCell>
+                  <TableCell>{trip.driver?.name || 'N/A'}</TableCell>
+                  <TableCell>{trip.cargoWeight}T</TableCell>
                   <TableCell>{getStatusBadge(trip.status)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       {trip.status === 'Draft' && (
-                        <Button variant="outline" size="sm" onClick={() => updateStatus(trip.id, 'Dispatched')}>
+                        <Button variant="outline" size="sm" onClick={() => updateStatus(trip.id, 'dispatch')}>
                           <Play className="mr-1 h-3 w-3" /> Dispatch
                         </Button>
                       )}
@@ -107,7 +156,7 @@ export default function Trips() {
                         </Button>
                       )}
                       {(trip.status === 'Draft' || trip.status === 'Dispatched') && (
-                        <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => updateStatus(trip.id, 'Cancelled')}>
+                        <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => updateStatus(trip.id, 'cancel')}>
                           <XCircle className="h-4 w-4" />
                         </Button>
                       )}
@@ -140,16 +189,20 @@ export default function Trips() {
             </div>
             <div className="space-y-2">
               <Label>Vehicle (Available)</Label>
-              <select name="vehicle" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                <option>TRK-1001 (Volvo FH16)</option>
-                <option>TRK-1002 (Scania R500)</option>
+              <select name="vehicle" required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                <option value="">Select a Vehicle</option>
+                {availableVehicles.map(v => (
+                  <option key={v.id} value={v.id}>{v.registrationNumber} ({v.name}) - {v.maxLoadCapacity}T</option>
+                ))}
               </select>
             </div>
             <div className="space-y-2">
               <Label>Driver (Available)</Label>
-              <select name="driver" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                <option>John Doe</option>
-                <option>Mike Johnson</option>
+              <select name="driver" required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                <option value="">Select a Driver</option>
+                {availableDrivers.map(d => (
+                  <option key={d.id} value={d.id}>{d.name} ({d.licenseCategory})</option>
+                ))}
               </select>
             </div>
             <div className="space-y-2">
@@ -176,21 +229,21 @@ export default function Trips() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Actual Distance (km)</Label>
-              <Input type="number" required />
+              <Input name="actualDistance" type="number" required />
             </div>
             <div className="space-y-2">
               <Label>Fuel Consumed (Liters)</Label>
-              <Input type="number" required />
+              <Input name="fuelConsumed" type="number" step="0.1" required />
             </div>
             <div className="space-y-2">
               <Label>Ending Odometer</Label>
-              <Input type="number" required />
+              <Input name="finalOdometer" type="number" step="0.1" required />
             </div>
           </div>
           
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => setIsCompleteModalOpen(false)}>Cancel</Button>
-            <Button type="submit" onClick={() => selectedTrip && updateStatus(selectedTrip.id, 'Completed')}>Mark Completed</Button>
+            <Button type="submit">Mark Completed</Button>
           </div>
         </form>
       </Modal>

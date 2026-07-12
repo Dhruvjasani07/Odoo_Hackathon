@@ -10,6 +10,7 @@ import { Truck } from 'lucide-react';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('Fleet Manager');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
@@ -31,7 +32,7 @@ export default function Login() {
       return;
     }
 
-    const result = await login(email, password);
+    const result = await login(email, password, role);
     
     if (result.success) {
       navigate('/dashboard');
@@ -61,6 +62,22 @@ export default function Login() {
                 </div>
               )}
               
+              <div className="space-y-2">
+                <Label htmlFor="role" className="uppercase text-xs tracking-wider">Role</Label>
+                <select 
+                  id="role"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="Fleet Manager">Fleet Manager</option>
+                  <option value="Dispatcher">Dispatcher</option>
+                  <option value="Safety Officer">Safety Officer</option>
+                  <option value="Financial Analyst">Financial Analyst</option>
+                  <option value="Driver">Driver</option>
+                </select>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="email" className="uppercase text-xs tracking-wider">Email</Label>
                 <Input 

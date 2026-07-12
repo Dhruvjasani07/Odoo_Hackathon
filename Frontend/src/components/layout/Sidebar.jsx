@@ -67,7 +67,7 @@ export function Sidebar() {
 
       <div className="border-t p-4">
         <div className="mb-4 px-2">
-          <p className="text-sm font-medium leading-none">{user?.name || 'User'}</p>
+          <p className="text-sm font-medium leading-none truncate" title={user?.name}>{user?.name || 'User'}</p>
           <p className="text-xs text-muted-foreground mt-1">{user?.role || 'Role'}</p>
         </div>
         <Button variant="outline" className="w-full justify-start text-muted-foreground hover:text-foreground" onClick={logout}>

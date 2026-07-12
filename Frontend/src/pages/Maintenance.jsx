@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -7,34 +7,53 @@ import { Label } from '../components/ui/Label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table';
 import { Wrench, CheckCircle2 } from 'lucide-react';
 
-const mockRecords = [
-  { id: 1, vehicle: 'VAN-2001', description: 'Engine oil change and filter replacement', cost: '₹150.00', date: '2026-07-10', status: 'Open' },
-  { id: 2, vehicle: 'TRK-1002', description: 'Brake pad replacement (front)', cost: '₹450.00', date: '2026-06-25', status: 'Closed' },
-  { id: 3, vehicle: 'TRK-1001', description: 'Annual DOT Inspection', cost: '₹200.00', date: '2026-05-15', status: 'Closed' },
-];
+import api from '../api/axios';
 
 export default function Maintenance() {
-  const [records, setRecords] = useState(mockRecords);
+  const [records, setRecords] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
 
-  const handleLogMaintenance = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    
-    const newRecord = {
-      id: Date.now(),
-      vehicle: formData.get('vehicle'),
-      description: formData.get('description'),
-      cost: `₹${parseFloat(formData.get('cost')).toFixed(2)}`,
-      date: new Date().toISOString().split('T')[0],
-      status: 'Open'
-    };
-
-    setRecords([newRecord, ...records]);
-    e.target.reset();
+  const fetchData = async () => {
+    try {
+      const [mRes, vRes] = await Promise.all([
+        api.get('/maintenance'),
+        api.get('/vehicles')
+      ]);
+      setRecords(mRes.data);
+      setVehicles(vRes.data);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const closeRecord = (id) => {
-    setRecords(records.map(r => r.id === id ? { ...r, status: 'Closed' } : r));
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleLogMaintenance = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    try {
+      await api.post('/maintenance', {
+        vehicleId: formData.get('vehicle'),
+        description: formData.get('description'),
+        cost: parseFloat(formData.get('cost')),
+        date: new Date().toISOString().split('T')[0]
+      });
+      fetchData();
+      e.target.reset();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to log maintenance');
+    }
+  };
+
+  const closeRecord = async (id) => {
+    try {
+      await api.put(`/maintenance/${id}/close`);
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to close record');
+    }
   };
 
   return (
@@ -59,9 +78,9 @@ export default function Maintenance() {
                 <Label>Vehicle</Label>
                 <select name="vehicle" required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                   <option value="" disabled selected>Select Vehicle</option>
-                  <option value="TRK-1001">TRK-1001</option>
-                  <option value="TRK-1002">TRK-1002</option>
-                  <option value="TRK-1003">TRK-1003</option>
+                  {vehicles.map(v => (
+                    <option key={v.id} value={v.id}>{v.registrationNumber} ({v.name})</option>
+                  ))}
                 </select>
                 <p className="text-[10px] text-muted-foreground">Only shows vehicles not currently "In Shop"</p>
               </div>
@@ -103,12 +122,12 @@ export default function Maintenance() {
               <TableBody>
                 {records.map((record) => (
                   <TableRow key={record.id}>
-                    <TableCell className="whitespace-nowrap">{record.date}</TableCell>
-                    <TableCell className="font-medium">{record.vehicle}</TableCell>
+                    <TableCell className="whitespace-nowrap">{new Date(record.date).toLocaleDateString()}</TableCell>
+                    <TableCell className="font-medium">{record.vehicle?.registrationNumber || 'N/A'}</TableCell>
                     <TableCell className="max-w-[200px] truncate" title={record.description}>
                       {record.description}
                     </TableCell>
-                    <TableCell>{record.cost}</TableCell>
+                    <TableCell>₹{parseFloat(record.cost).toFixed(2)}</TableCell>
                     <TableCell>
                       {record.status === 'Open' ? (
                         <Badge variant="warning">Open</Badge>

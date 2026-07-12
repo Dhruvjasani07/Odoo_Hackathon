@@ -14,7 +14,16 @@ export default function Dashboard() {
     activeTrips: 42,
     pendingTrips: 15,
     driversOnDuty: 50,
-    fleetUtilization: 78
+    fleetUtilization: 78,
+    weeklyUtilization: [
+      { name: 'Mon', utilization: 0 },
+      { name: 'Tue', utilization: 0 },
+      { name: 'Wed', utilization: 0 },
+      { name: 'Thu', utilization: 0 },
+      { name: 'Fri', utilization: 0 },
+      { name: 'Sat', utilization: 0 },
+      { name: 'Sun', utilization: 0 },
+    ]
   });
   
   const [loading, setLoading] = useState(false);
@@ -23,13 +32,18 @@ export default function Dashboard() {
     const fetchKpis = async () => {
       setLoading(true);
       try {
-        // const res = await api.get('/dashboard/kpis');
-        // setKpis(res.data);
-        
-        // Mock data loading simulation
-        setTimeout(() => {
-          setLoading(false);
-        }, 500);
+        const res = await api.get('/dashboard/kpis');
+        setKpis({
+          activeVehicles: res.data.activeVehicles || 0,
+          availableVehicles: res.data.availableVehicles || 0,
+          maintenanceVehicles: res.data.inMaintenance || 0,
+          activeTrips: res.data.activeTrips || 0,
+          pendingTrips: res.data.pendingTrips || 0,
+          driversOnDuty: res.data.driversOnDuty || 0,
+          fleetUtilization: res.data.fleetUtilizationPercent || 0,
+          weeklyUtilization: res.data.weeklyUtilization || kpis.weeklyUtilization
+        });
+        setLoading(false);
       } catch (err) {
         console.error(err);
         setLoading(false);
@@ -45,15 +59,7 @@ export default function Dashboard() {
     { name: 'Retired Vehicles', value: 3 }, // Mock retired
   ];
 
-  const utilizationData = [
-    { name: 'Mon', utilization: 65 },
-    { name: 'Tue', utilization: 72 },
-    { name: 'Wed', utilization: 78 },
-    { name: 'Thu', utilization: 85 },
-    { name: 'Fri', utilization: 90 },
-    { name: 'Sat', utilization: 45 },
-    { name: 'Sun', utilization: 30 },
-  ];
+
 
   return (
     <div className="space-y-6 animate-in">
@@ -68,25 +74,21 @@ export default function Dashboard() {
           title="Active Vehicles" 
           value={kpis.activeVehicles} 
           icon={<Truck className="h-4 w-4 text-blue-500" />} 
-          trend="+4 from yesterday"
         />
         <KpiCard 
           title="Available Vehicles" 
           value={kpis.availableVehicles} 
           icon={<Activity className="h-4 w-4 text-green-500" />} 
-          trend="Ready for dispatch"
         />
         <KpiCard 
           title="In Maintenance" 
           value={kpis.maintenanceVehicles} 
           icon={<Wrench className="h-4 w-4 text-orange-500" />} 
-          trend="-2 from last week"
         />
         <KpiCard 
           title="Fleet Utilization" 
           value={`${kpis.fleetUtilization}%`} 
           icon={<Percent className="h-4 w-4 text-purple-500" />} 
-          trend="+5% from last month"
         />
         <KpiCard 
           title="Active Trips" 
@@ -137,7 +139,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={utilizationData}>
+              <BarChart data={kpis.weeklyUtilization}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} />
                 <YAxis axisLine={false} tickLine={false} />

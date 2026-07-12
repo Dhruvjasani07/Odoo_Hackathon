@@ -14,42 +14,39 @@ export const AuthProvider = ({ children }) => {
     const storedUser = localStorage.getItem('transitops_user');
 
     if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      
+      // If the old state doesn't have an email, automatically clear it to force a fresh login
+      if (!parsedUser.email) {
+        localStorage.removeItem('transitops_token');
+        localStorage.removeItem('transitops_user');
+      } else {
+        setToken(storedToken);
+        setUser(parsedUser);
+      }
     }
     setLoading(false);
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (email, password, role) => {
     try {
       // Real API call
-      // const response = await api.post('/auth/login', { email, password });
-      // const { token, role, name } = response.data;
+      const response = await api.post('/auth/login', { email, password, role });
+      const { token, role: userRole, name, email: userEmail } = response.data;
       
-      // Mock implementation for hackathon if API isn't ready
-      console.log('Mocking login for', email);
+      setToken(token);
+      setUser({ name, role: userRole, email: userEmail });
       
-      let role = 'Fleet Manager';
-      if (email.includes('driver')) role = 'Driver';
-      if (email.includes('safety')) role = 'Safety Officer';
-      if (email.includes('finance')) role = 'Financial Analyst';
-
-      const mockData = {
-        token: 'mock-jwt-token-12345',
-        role: role,
-        name: email.split('@')[0],
-      };
-
-      setToken(mockData.token);
-      setUser({ name: mockData.name, role: mockData.role });
-      
-      localStorage.setItem('transitops_token', mockData.token);
-      localStorage.setItem('transitops_user', JSON.stringify({ name: mockData.name, role: mockData.role }));
+      localStorage.setItem('transitops_token', token);
+      localStorage.setItem('transitops_user', JSON.stringify({ name, role: userRole, email: userEmail }));
 
       return { success: true };
     } catch (error) {
       console.error('Login failed', error);
-      return { success: false, error: 'Invalid credentials' };
+      return { 
+        success: false, 
+        error: error.response?.data?.message || 'Invalid credentials' 
+      };
     }
   };
 

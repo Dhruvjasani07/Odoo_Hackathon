@@ -1,35 +1,60 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table';
 import { Download } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ResponsiveContainer } from 'recharts';
 
-const mockReports = [
-  { id: 1, vehicle: 'TRK-1001 (Volvo)', distance: '12,500 km', fuelEfficiency: '3.2 km/L', opsCost: 4500.50, roi: '+12.5%' },
-  { id: 2, vehicle: 'TRK-1002 (Scania)', distance: '10,200 km', fuelEfficiency: '2.9 km/L', opsCost: 4100.00, roi: '+8.2%' },
-  { id: 3, vehicle: 'VAN-2001 (Ford)', distance: '4,500 km', fuelEfficiency: '8.5 km/L', opsCost: 1200.75, roi: '+22.1%' },
-  { id: 4, vehicle: 'TRK-1003 (Volvo)', distance: '15,800 km', fuelEfficiency: '3.4 km/L', opsCost: 5200.25, roi: '+15.4%' },
-];
-
-const chartData = mockReports.map(r => ({
-  name: r.vehicle.split(' ')[0],
-  'Operational Cost': r.opsCost
-}));
+import api from '../api/axios';
 
 export default function Reports() {
-  const handleExportCSV = () => {
-    // Mock export functionality
-    const csvContent = "data:text/csv;charset=utf-8,Vehicle,Distance,Fuel Efficiency,Operational Cost,ROI\n" + 
-      mockReports.map(e => `${e.vehicle},${e.distance},${e.fuelEfficiency},${e.opsCost},${e.roi}`).join("\n");
-    
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "transitops_report.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const [reports, setReports] = useState([]);
+  const [chartData, setChartData] = useState([]);
+
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        const [roiRes, feRes] = await Promise.all([
+          api.get('/reports/vehicle-roi'),
+          api.get('/reports/fuel-efficiency')
+        ]);
+        
+        // Merge them by vehicleId
+        const mergedReports = roiRes.data.map(roi => {
+          const fe = feRes.data.find(f => f.vehicleId === roi.vehicleId);
+          return {
+            ...roi,
+            fuelEfficiency: fe ? fe.fuelEfficiency : 0
+          };
+        });
+        
+        setReports(mergedReports);
+        
+        const cData = mergedReports.map(r => ({
+          name: r.registrationNumber,
+          'Operational Cost': parseFloat(r.totalOperationalCost) || 0
+        }));
+        setChartData(cData);
+      } catch (err) {
+        console.error('Failed to fetch reports', err);
+      }
+    };
+    fetchReports();
+  }, []);
+
+  const handleExportCSV = async () => {
+    try {
+      const res = await api.get('/reports/export/csv', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'vehicle_roi_report.csv');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      alert('Failed to export CSV');
+    }
   };
 
   return (
@@ -83,15 +108,15 @@ export default function Reports() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mockReports.map((report) => (
-                  <TableRow key={report.id}>
-                    <TableCell className="font-medium">{report.vehicle}</TableCell>
-                    <TableCell>{report.distance}</TableCell>
-                    <TableCell>{report.fuelEfficiency}</TableCell>
-                    <TableCell>₹{report.opsCost.toFixed(2)}</TableCell>
+                {reports.map((report) => (
+                  <TableRow key={report.vehicleId}>
+                    <TableCell className="font-medium">{report.registrationNumber}</TableCell>
+                    <TableCell>{report.totalDistance.toFixed(2)} km</TableCell>
+                    <TableCell>{report.fuelEfficiency.toFixed(2)} km/L</TableCell>
+                    <TableCell>₹{report.totalOperationalCost.toFixed(2)}</TableCell>
                     <TableCell className="text-right">
-                      <span className="text-green-600 font-medium bg-green-100 px-2 py-1 rounded-full text-xs">
-                        {report.roi}
+                      <span className={`${report.roiPercent >= 0 ? 'text-green-600 bg-green-100' : 'text-red-600 bg-red-100'} font-medium px-2 py-1 rounded-full text-xs`}>
+                        {report.roiPercent >= 0 ? '+' : ''}{report.roiPercent.toFixed(2)}%
                       </span>
                     </TableCell>
                   </TableRow>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Bell, Menu, UserCircle, Moon, Sun } from 'lucide-react';
+import { Menu, UserCircle, Moon, Sun } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 export function Topbar({ onMenuClick }) {
@@ -43,15 +43,11 @@ export function Topbar({ onMenuClick }) {
           {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           <span className="sr-only">Toggle theme</span>
         </Button>
-        <Button variant="ghost" size="icon" className="relative rounded-full">
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive" />
-          <span className="sr-only">Toggle notifications</span>
-        </Button>
+
         <div className="flex items-center gap-2">
           <UserCircle className="h-8 w-8 text-muted-foreground" />
           <div className="hidden md:block text-sm text-right">
-            <p className="font-medium leading-none">{user?.name || 'User'}</p>
+            <p className="font-medium leading-none truncate" title={user?.name}>{user?.name || 'User'}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{user?.role || 'Role'}</p>
           </div>
         </div>

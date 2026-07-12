@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -6,44 +6,85 @@ import { Label } from '../components/ui/Label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table';
 import { Fuel, Receipt } from 'lucide-react';
 
-const mockLogs = [
-  { id: 1, type: 'Fuel', vehicle: 'TRK-1001', amount: '120 L', cost: 180.50, date: '2026-07-11' },
-  { id: 2, type: 'Toll', vehicle: 'TRK-1002', amount: '-', cost: 45.00, date: '2026-07-10' },
-  { id: 3, type: 'Fuel', vehicle: 'VAN-2001', amount: '65 L', cost: 95.20, date: '2026-07-09' },
-  { id: 4, type: 'Parking', vehicle: 'TRK-1001', amount: '-', cost: 25.00, date: '2026-07-08' },
-];
+import api from '../api/axios';
 
 export default function FuelAndExpenses() {
-  const [logs, setLogs] = useState(mockLogs);
+  const [logs, setLogs] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
 
-  const handleFuelSubmit = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const newLog = {
-      id: Date.now(),
-      type: 'Fuel',
-      vehicle: formData.get('vehicle'),
-      amount: `${formData.get('liters')} L`,
-      cost: parseFloat(formData.get('cost')),
-      date: formData.get('date')
-    };
-    setLogs([newLog, ...logs]);
-    e.target.reset();
+  const fetchData = async () => {
+    try {
+      const [fuelRes, expRes, vRes] = await Promise.all([
+        api.get('/fuel-logs'),
+        api.get('/expenses'),
+        api.get('/vehicles')
+      ]);
+      
+      const fuelLogs = fuelRes.data.map(f => ({
+        id: `f-${f.id}`,
+        type: 'Fuel',
+        vehicle: f.vehicle?.registrationNumber || 'N/A',
+        amount: `${f.liters} L`,
+        cost: parseFloat(f.cost),
+        date: new Date(f.date).toLocaleDateString(),
+        rawDate: new Date(f.date)
+      }));
+      
+      const expenses = expRes.data.map(e => ({
+        id: `e-${e.id}`,
+        type: e.type,
+        vehicle: e.vehicle ? e.vehicle.registrationNumber : 'General',
+        amount: '-',
+        cost: parseFloat(e.amount),
+        date: new Date(e.date).toLocaleDateString(),
+        rawDate: new Date(e.date)
+      }));
+
+      const combined = [...fuelLogs, ...expenses].sort((a, b) => b.rawDate - a.rawDate);
+      setLogs(combined);
+      setVehicles(vRes.data);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleExpenseSubmit = (e) => {
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleFuelSubmit = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const newLog = {
-      id: Date.now(),
-      type: formData.get('type'),
-      vehicle: formData.get('vehicle'),
-      amount: '-',
-      cost: parseFloat(formData.get('cost')),
-      date: formData.get('date')
-    };
-    setLogs([newLog, ...logs]);
-    e.target.reset();
+    try {
+      await api.post('/fuel-logs', {
+        vehicleId: formData.get('vehicle'),
+        liters: parseFloat(formData.get('liters')),
+        cost: parseFloat(formData.get('cost')),
+        date: formData.get('date')
+      });
+      fetchData();
+      e.target.reset();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to log fuel');
+    }
+  };
+
+  const handleExpenseSubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const vId = formData.get('vehicle');
+    try {
+      await api.post('/expenses', {
+        type: formData.get('type'),
+        amount: parseFloat(formData.get('cost')),
+        date: formData.get('date'),
+        vehicleId: vId === 'None' ? null : vId
+      });
+      fetchData();
+      e.target.reset();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to log expense');
+    }
   };
 
   const totalCost = logs.reduce((acc, curr) => acc + curr.cost, 0);
@@ -70,8 +111,9 @@ export default function FuelAndExpenses() {
                 <Label>Vehicle</Label>
                 <select name="vehicle" required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                   <option value="" disabled selected>Select Vehicle</option>
-                  <option value="TRK-1001">TRK-1001</option>
-                  <option value="TRK-1002">TRK-1002</option>
+                  {vehicles.map(v => (
+                    <option key={v.id} value={v.id}>{v.registrationNumber}</option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-2">
@@ -105,8 +147,9 @@ export default function FuelAndExpenses() {
                 <Label>Vehicle (Optional)</Label>
                 <select name="vehicle" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                   <option value="None">None (General)</option>
-                  <option value="TRK-1001">TRK-1001</option>
-                  <option value="TRK-1002">TRK-1002</option>
+                  {vehicles.map(v => (
+                    <option key={v.id} value={v.id}>{v.registrationNumber}</option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-2">
@@ -146,7 +189,7 @@ export default function FuelAndExpenses() {
                       {log.type === 'Fuel' ? <Fuel className="h-4 w-4" /> : <Receipt className="h-4 w-4" />}
                     </div>
                     <div>
-                      <p className="text-sm font-medium">{log.vehicle !== 'None' ? log.vehicle : 'General'} - {log.type}</p>
+                      <p className="text-sm font-medium">{log.vehicle} - {log.type}</p>
                       <p className="text-xs text-muted-foreground">{log.date}</p>
                     </div>
                   </div>
